@@ -89,7 +89,7 @@ function fetchData(field, callback) {
 
       const labels = feeds.map(f => {
         const utcTime = new Date(f.created_at);
-        const taiwanTime = new Date(utcTime.getTime() + 8 * 60 * 60 * 1000);
+        const taiwanTime = new Date(utcTime.getTime() + 8 * 60 * 60 * 1000); // +8小時
         return taiwanTime.toLocaleString('zh-TW', {
           year: 'numeric',
           month: '2-digit',
@@ -106,9 +106,17 @@ function fetchData(field, callback) {
     });
 }
 
+let charts = {}; // 存儲圖表變數
+
+// 畫圖表
 function drawChart(canvasId, label, color, field) {
   fetchData(field, (labels, values) => {
-    new Chart(document.getElementById(canvasId), {
+    // 若已存在舊圖表，先清除
+    if (charts[canvasId]) {
+      charts[canvasId].destroy();
+    }
+
+    charts[canvasId] = new Chart(document.getElementById(canvasId), {
       type: 'line',
       data: {
         labels: labels,
@@ -133,10 +141,17 @@ function drawChart(canvasId, label, color, field) {
   });
 }
 
-// 畫三張圖
+// 畫三張圖（第一次載入）
 drawChart('tempChart', '溫度 (°C)', '#FF5733', 1);
 drawChart('humChart', '濕度 (%)', '#33C3FF', 2);
 drawChart('voltChart', '電壓 (V)', '#FFC300', 3);
+
+// ✅ 每30秒自動重繪一次圖表（更新資料）
+setInterval(() => {
+  drawChart('tempChart', '溫度 (°C)', '#FF5733', 1);
+  drawChart('humChart', '濕度 (%)', '#33C3FF', 2);
+  drawChart('voltChart', '電壓 (V)', '#FFC300', 3);
+}, 30000); // 30秒
 
 // 控制裝置（Field 4）
 function sendCommand(value) {
