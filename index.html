@@ -94,4 +94,90 @@
       return utcTime.toLocaleString('zh-TW', {
         year: 'numeric',
         month: '2-digit',
-        day
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true // 12小時制（上午/下午）
+      });
+    }
+
+    // 拉取資料
+    function fetchData(field, callback) {
+      const url = `https://api.thingspeak.com/channels/${channelID}/fields/${field}.json?api_key=${readAPIKey}&results=${resultCount}`;
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          const feeds = data.feeds;
+          const labels = feeds.map(f => convertToUTCTime(f.created_at)); // 使用原始的 UTC 時間
+          const values = feeds.map(f => parseFloat(f[`field${field}`]));
+          callback(labels, values);
+        });
+    }
+
+    let charts = {}; // 用來儲存圖表實例
+
+    // 畫圖表
+    function drawChart(canvasId, label, color, field) {
+      fetchData(field, (labels, values) => {
+        // 若已存在舊圖表，先清除
+        if (charts[canvasId]) {
+          charts[canvasId].destroy();  // 清除舊圖表
+        }
+
+        // 創建新圖表
+        charts[canvasId] = new Chart(document.getElementById(canvasId), {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: label,
+              data: values,
+              borderColor: color,
+              backgroundColor: color + '33',
+              fill: true,
+              tension: 0.3
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: {
+                beginAtZero: false
+              }
+            }
+          }
+        });
+      });
+    }
+
+    // 畫三張圖（第一次載入）
+    drawChart('tempChart', '溫度 (°C)', '#FF5733', 1);
+    drawChart('humChart', '濕度 (%)', '#33C3FF', 2);
+    drawChart('voltChart', '電壓 (V)', '#FFC300', 3);
+
+    // 每30秒自動重繪一次圖表（更新資料）
+    setInterval(() => {
+      drawChart('tempChart', '溫度 (°C)', '#FF5733', 1);
+      drawChart('humChart', '濕度 (%)', '#33C3FF', 2);
+      drawChart('voltChart', '電壓 (V)', '#FFC300', 3);
+    }, 30000); // 每30秒更新
+
+    // 控制裝置（Field 4）
+    function sendCommand(value) {
+      const url = `https://api.thingspeak.com/update?api_key=${writeAPIKey}&field4=${value}`;
+      fetch(url)
+        .then(res => res.text())
+        .then(data => {
+          if (parseInt(data) > 0) {
+            alert(`裝置已${value === 1 ? '開啟' : '關閉'}！`);
+          } else {
+            alert("控制失敗，請稍後再試！");
+          }
+        });
+    }
+  </script>
+
+</body>
+
+</html>
