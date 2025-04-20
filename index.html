@@ -13,10 +13,12 @@
       margin: 0;
       padding: 20px;
     }
+
     h2 {
       text-align: center;
       margin-bottom: 10px;
     }
+
     .chart-container {
       max-width: 900px;
       margin: 30px auto;
@@ -24,14 +26,17 @@
       border-radius: 10px;
       padding: 20px;
     }
+
     canvas {
       width: 100% !important;
       height: 400px !important;
     }
+
     .controls {
       text-align: center;
       margin-top: 40px;
     }
+
     button {
       background-color: #4CAF50;
       border: none;
@@ -43,6 +48,7 @@
       cursor: pointer;
       transition: 0.3s;
     }
+
     button:hover {
       background-color: #45a049;
     }
@@ -51,131 +57,128 @@
 
 <body>
 
-<h2>🌐 雲端感測儀錶板（ThingSpeak + Chart.js）</h2>
+  <h2>🌐 雲端感測儀錶板（ThingSpeak + Chart.js）</h2>
 
-<div class="chart-container">
-  <h3>🌡️ 溫度</h3>
-  <canvas id="tempChart"></canvas>
-</div>
+  <div class="chart-container">
+    <h3>🌡️ 溫度</h3>
+    <canvas id="tempChart"></canvas>
+  </div>
 
-<div class="chart-container">
-  <h3>💧 濕度</h3>
-  <canvas id="humChart"></canvas>
-</div>
+  <div class="chart-container">
+    <h3>💧 濕度</h3>
+    <canvas id="humChart"></canvas>
+  </div>
 
-<div class="chart-container">
-  <h3>🔋 電壓</h3>
-  <canvas id="voltChart"></canvas>
-</div>
+  <div class="chart-container">
+    <h3>🔋 電壓</h3>
+    <canvas id="voltChart"></canvas>
+  </div>
 
-<div class="controls">
-  <h3>🛰️ 雲端裝置控制</h3>
-  <button onclick="sendCommand(1)">開啟裝置</button>
-  <button onclick="sendCommand(0)">關閉裝置</button>
-</div>
+  <div class="controls">
+    <h3>🛰️ 雲端裝置控制</h3>
+    <button onclick="sendCommand(1)">開啟裝置</button>
+    <button onclick="sendCommand(0)">關閉裝置</button>
+  </div>
 
-<script>
-// ThingSpeak 配置
-const channelID = 2916938;
-const readAPIKey = "DMGOOIQQ66FTYLLG";
-const writeAPIKey = "N8IHJ199LRCNXZN6";
-const resultCount = 20;
+  <script>
+    // ThingSpeak 配置
+    const channelID = 2916938;
+    const readAPIKey = "DMGOOIQQ66FTYLLG";
+    const writeAPIKey = "N8IHJ199LRCNXZN6";
+    const resultCount = 20;
 
-// 時間轉換：將 UTC 時間轉換為台灣時間（UTC+8）
-function convertToTaiwanTime(utcDate) {
-  const utcTime = new Date(utcDate);
-  const taiwanTime = new Date(utcTime.getTime() + 8 * 60 * 60 * 1000); // 加 8 小時轉換為台灣時間
-  const options = {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true
-  };
-  return taiwanTime.toLocaleString('zh-TW', options);
-}
-
-// 拉取資料
-function fetchData(field, callback) {
-  const url = `https://api.thingspeak.com/channels/${channelID}/fields/${field}.json?api_key=${readAPIKey}&results=${resultCount}`;
-
-  fetch(url)
-    .then(res => res.json())
-    .then(data => {
-      const feeds = data.feeds;
-      // 轉換所有時間
-      const labels = feeds.map(f => convertToTaiwanTime(f.created_at)); // 使用轉換過的台灣時間
-      const values = feeds.map(f => parseFloat(f[`field${field}`]));
-      // 回呼
-      callback(labels, values);
-    });
-}
-
-let charts = {}; // 用來儲存圖表實例
-
-// 畫圖表
-function drawChart(canvasId, label, color, field) {
-  fetchData(field, (labels, values) => {
-    // 若已存在舊圖表，先清除
-    if (charts[canvasId]) {
-      charts[canvasId].destroy();
+    // 時間轉換：將 UTC 時間轉換為台灣時間（UTC+8）
+    function convertToTaiwanTime(utcDate) {
+      const utcTime = new Date(utcDate);
+      console.log("UTC Time: ", utcTime);  // 顯示原始 UTC 時間
+      const taiwanTime = new Date(utcTime.getTime() + 8 * 60 * 60 * 1000); // 加 8 小時轉換為台灣時間
+      console.log("Converted Taiwan Time: ", taiwanTime);  // 顯示轉換後的台灣時間
+      return taiwanTime.toLocaleString('zh-TW', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true // 12小時制（上午/下午）
+      });
     }
 
-    charts[canvasId] = new Chart(document.getElementById(canvasId), {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: label,
-          data: values,
-          borderColor: color,
-          backgroundColor: color + '33',
-          fill: true,
-          tension: 0.3
-        }]
-      },
-      options: {
-        responsive: true,
-        scales: {
-          y: {
-            beginAtZero: false
-          }
+    // 拉取資料
+    function fetchData(field, callback) {
+      const url = `https://api.thingspeak.com/channels/${channelID}/fields/${field}.json?api_key=${readAPIKey}&results=${resultCount}`;
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          const feeds = data.feeds;
+          const labels = feeds.map(f => convertToTaiwanTime(f.created_at)); // 使用轉換過的台灣時間
+          const values = feeds.map(f => parseFloat(f[`field${field}`]));
+          callback(labels, values);
+        });
+    }
+
+    let charts = {}; // 用來儲存圖表實例
+
+    // 畫圖表
+    function drawChart(canvasId, label, color, field) {
+      fetchData(field, (labels, values) => {
+        // 若已存在舊圖表，先清除
+        if (charts[canvasId]) {
+          charts[canvasId].destroy();
         }
-      }
-    });
-  });
-}
 
-// 畫三張圖（第一次載入）
-drawChart('tempChart', '溫度 (°C)', '#FF5733', 1);
-drawChart('humChart', '濕度 (%)', '#33C3FF', 2);
-drawChart('voltChart', '電壓 (V)', '#FFC300', 3);
+        charts[canvasId] = new Chart(document.getElementById(canvasId), {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: label,
+              data: values,
+              borderColor: color,
+              backgroundColor: color + '33',
+              fill: true,
+              tension: 0.3
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: {
+                beginAtZero: false
+              }
+            }
+          }
+        });
+      });
+    }
 
-// 每30秒自動重繪一次圖表（更新資料）
-setInterval(() => {
-  drawChart('tempChart', '溫度 (°C)', '#FF5733', 1);
-  drawChart('humChart', '濕度 (%)', '#33C3FF', 2);
-  drawChart('voltChart', '電壓 (V)', '#FFC300', 3);
-}, 30000); // 每30秒更新
+    // 畫三張圖（第一次載入）
+    drawChart('tempChart', '溫度 (°C)', '#FF5733', 1);
+    drawChart('humChart', '濕度 (%)', '#33C3FF', 2);
+    drawChart('voltChart', '電壓 (V)', '#FFC300', 3);
 
-// 控制裝置（Field 4）
-function sendCommand(value) {
-  const url = `https://api.thingspeak.com/update?api_key=${writeAPIKey}&field4=${value}`;
+    // 每30秒自動重繪一次圖表（更新資料）
+    setInterval(() => {
+      drawChart('tempChart', '溫度 (°C)', '#FF5733', 1);
+      drawChart('humChart', '濕度 (%)', '#33C3FF', 2);
+      drawChart('voltChart', '電壓 (V)', '#FFC300', 3);
+    }, 30000); // 每30秒更新
 
-  fetch(url)
-    .then(res => res.text())
-    .then(data => {
-      if (parseInt(data) > 0) {
-        alert(`裝置已${value === 1 ? '開啟' : '關閉'}！`);
-      } else {
-        alert("控制失敗，請稍後再試！");
-      }
-    });
-}
-
-</script>
+    // 控制裝置（Field 4）
+    function sendCommand(value) {
+      const url = `https://api.thingspeak.com/update?api_key=${writeAPIKey}&field4=${value}`;
+      fetch(url)
+        .then(res => res.text())
+        .then(data => {
+          if (parseInt(data) > 0) {
+            alert(`裝置已${value === 1 ? '開啟' : '關閉'}！`);
+          } else {
+            alert("控制失敗，請稍後再試！");
+          }
+        });
+    }
+  </script>
 
 </body>
+
 </html>
