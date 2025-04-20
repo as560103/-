@@ -1,181 +1,55 @@
-<!DOCTYPE html> 
-<html lang="zh-Hant">
+#include <ESP8266WiFi.h>
+#include <WiFiUdp.h>
+#include <NTPClient.h>
 
-<head>
-  <meta charset="UTF-8">
-  <title>雲端感測儀錶板</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background-color: #1e1e2f;
-      color: white;
-      margin: 0;
-      padding: 20px;
-    }
-    h2 {
-      text-align: center;
-      margin-bottom: 10px;
-    }
-    .chart-container {
-      max-width: 900px;
-      margin: 30px auto;
-      background-color: #2c2f4a;
-      border-radius: 10px;
-      padding: 20px;
-    }
-    canvas {
-      width: 100% !important;
-      height: 400px !important;
-    }
-    .controls {
-      text-align: center;
-      margin-top: 40px;
-    }
-    button {
-      background-color: #4CAF50;
-      border: none;
-      color: white;
-      padding: 12px 24px;
-      margin: 10px;
-      font-size: 18px;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: 0.3s;
-    }
-    button:hover {
-      background-color: #45a049;
-    }
-  </style>
-</head>
+const char* ssid = "你的WiFi名稱";
+const char* password = "你的WiFi密碼";
 
-<body>
+// NTP伺服器
+const char* ntpServer = "pool.ntp.org";
 
-<h2>🌐 雲端感測儀錶板（ThingSpeak + Chart.js）</h2>
+// 設定時區（台灣為 UTC+8）
+const long gmtOffset_sec = 8 * 3600;
+const int daylightOffset_sec = 0;
 
-<div class="chart-container">
-  <h3>🌡️ 溫度</h3>
-  <canvas id="tempChart"></canvas>
-</div>
+WiFiUDP udp;
+NTPClient timeClient(udp, ntpServer, gmtOffset_sec, 60000);  // 每 60000 毫秒更新一次時間
 
-<div class="chart-container">
-  <h3>💧 濕度</h3>
-  <canvas id="humChart"></canvas>
-</div>
+void setup() {
+  Serial.begin(115200);
+  WiFi.begin(ssid, password);
 
-<div class="chart-container">
-  <h3>🔋 電壓</h3>
-  <canvas id="voltChart"></canvas>
-</div>
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
+  }
+  Serial.println("Connected to WiFi");
 
-<div class="controls">
-  <h3>🛰️ 雲端裝置控制</h3>
-  <button onclick="sendCommand(1)">開啟裝置</button>
-  <button onclick="sendCommand(0)">關閉裝置</button>
-</div>
-
-<script>
-// ThingSpeak 配置
-const channelID = 2916938;
-const readAPIKey = "DMGOOIQQ66FTYLLG";
-const writeAPIKey = "N8IHJ199LRCNXZN6";
-const resultCount = 20;
-
-// 時間轉換：將 UTC 時間轉換為台灣時間（UTC+8）
-function convertToTaiwanTime(utcDate) {
-  const utcTime = new Date(utcDate);
-  const taiwanTime = new Date(utcTime.getTime() + 8 * 60 * 60 * 1000); // 加 8 小時轉換為台灣時間
-  const options = {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true
-  };
-  return taiwanTime.toLocaleString('zh-TW', options);
+  timeClient.begin();
 }
 
-// 拉取資料
-function fetchData(field, callback) {
-  const url = `https://api.thingspeak.com/channels/${channelID}/fields/${field}.json?api_key=${readAPIKey}&results=${resultCount}`;
+void loop() {
+  timeClient.update();
+  
+  // 將時間轉換為 UTC 格式並打印
+  String formattedTime = timeClient.getFormattedTime();
+  Serial.println(formattedTime);
 
-  fetch(url)
-    .then(res => res.json())
-    .then(data => {
-      const feeds = data.feeds;
-      // 轉換所有時間
-      const labels = feeds.map(f => convertToTaiwanTime(f.created_at)); // 使用轉換過的台灣時間
-      const values = feeds.map(f => parseFloat(f[`field${field}`]));
-      // 回呼
-      callback(labels, values);
-    });
+  // 將格式化後的時間發送到 ThingSpeak
+  sendToThingSpeak(formattedTime);
+
+  delay(10000);  // 每 10 秒更新一次
 }
 
-let charts = {}; // 用來儲存圖表實例
+// 將時間發送到 ThingSpeak
+void sendToThingSpeak(String formattedTime) {
+  String url = "https://api.thingspeak.com/update?api_key=你的WriteAPIKey&field1=" + formattedTime;
 
-// 畫圖表
-function drawChart(canvasId, label, color, field) {
-  fetchData(field, (labels, values) => {
-    // 若已存在舊圖表，先清除
-    if (charts[canvasId]) {
-      charts[canvasId].destroy();
-    }
-
-    charts[canvasId] = new Chart(document.getElementById(canvasId), {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: label,
-          data: values,
-          borderColor: color,
-          backgroundColor: color + '33',
-          fill: true,
-          tension: 0.3
-        }]
-      },
-      options: {
-        responsive: true,
-        scales: {
-          y: {
-            beginAtZero: false
-          }
-        }
-      }
-    });
-  });
+  WiFiClient client;
+  if (client.connect("api.thingspeak.com", 80)) {
+    client.println("GET " + url + " HTTP/1.1");
+    client.println("Host: api.thingspeak.com");
+    client.println("Connection: close");
+    client.println();
+  }
 }
-
-// 畫三張圖（第一次載入）
-drawChart('tempChart', '溫度 (°C)', '#FF5733', 1);
-drawChart('humChart', '濕度 (%)', '#33C3FF', 2);
-drawChart('voltChart', '電壓 (V)', '#FFC300', 3);
-
-// 每30秒自動重繪一次圖表（更新資料）
-setInterval(() => {
-  drawChart('tempChart', '溫度 (°C)', '#FF5733', 1);
-  drawChart('humChart', '濕度 (%)', '#33C3FF', 2);
-  drawChart('voltChart', '電壓 (V)', '#FFC300', 3);
-}, 30000); // 每30秒更新
-
-// 控制裝置（Field 4）
-function sendCommand(value) {
-  const url = `https://api.thingspeak.com/update?api_key=${writeAPIKey}&field4=${value}`;
-
-  fetch(url)
-    .then(res => res.text())
-    .then(data => {
-      if (parseInt(data) > 0) {
-        alert(`裝置已${value === 1 ? '開啟' : '關閉'}！`);
-      } else {
-        alert("控制失敗，請稍後再試！");
-      }
-    });
-}
-
-</script>
-
-</body>
-</html>
