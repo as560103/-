@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
@@ -78,14 +78,30 @@ const readAPIKey = "DMGOOIQQ66FTYLLG";
 const writeAPIKey = "N8IHJ199LRCNXZN6";
 const resultCount = 20;
 
+// ✅ 時間已轉換為 GMT+8
 function fetchData(field, callback) {
   const url = `https://api.thingspeak.com/channels/${channelID}/fields/${field}.json?api_key=${readAPIKey}&results=${resultCount}`;
+
   fetch(url)
     .then(res => res.json())
     .then(data => {
       const feeds = data.feeds;
-      const labels = feeds.map(f => f.created_at.split("T")[1].split("Z")[0]); // 時間
+
+      const labels = feeds.map(f => {
+        const utcTime = new Date(f.created_at);
+        const taiwanTime = new Date(utcTime.getTime() + 8 * 60 * 60 * 1000);
+        return taiwanTime.toLocaleString('zh-TW', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+      });
+
       const values = feeds.map(f => parseFloat(f[`field${field}`]));
+
       callback(labels, values);
     });
 }
