@@ -2,15 +2,10 @@
 <html lang="zh-Hant">
 
 <head>
-
   <meta charset="UTF-8">
-
   <title>雲端感測儀錶板</title>
-
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
   <style>
-
     body {
       font-family: 'Segoe UI', sans-serif;
       background-color: #1e1e2f;
@@ -18,12 +13,10 @@
       margin: 0;
       padding: 20px;
     }
-
     h2 {
       text-align: center;
       margin-bottom: 10px;
     }
-
     .chart-container {
       max-width: 900px;
       margin: 30px auto;
@@ -31,17 +24,14 @@
       border-radius: 10px;
       padding: 20px;
     }
-
     canvas {
       width: 100% !important;
       height: 400px !important;
     }
-
     .controls {
       text-align: center;
       margin-top: 40px;
     }
-
     button {
       background-color: #4CAF50;
       border: none;
@@ -53,13 +43,10 @@
       cursor: pointer;
       transition: 0.3s;
     }
-
     button:hover {
       background-color: #45a049;
     }
-
   </style>
-
 </head>
 
 <body>
@@ -98,15 +85,16 @@ const resultCount = 20;
 function convertToTaiwanTime(utcDate) {
   const utcTime = new Date(utcDate);
   const taiwanTime = new Date(utcTime.getTime() + 8 * 60 * 60 * 1000); // 加 8 小時轉換為台灣時間
-  return taiwanTime.toLocaleString('zh-TW', {
+  const options = {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-    hour12: true // 12小時制（上午/下午）
-  });
+    hour12: true
+  };
+  return taiwanTime.toLocaleString('zh-TW', options);
 }
 
 // 拉取資料
