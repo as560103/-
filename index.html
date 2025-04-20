@@ -87,98 +87,11 @@
     const writeAPIKey = "N8IHJ199LRCNXZN6";
     const resultCount = 20;
 
-    // 時間轉換：將 UTC 時間轉換為台灣時間（UTC+8）
-    function convertToTaiwanTime(utcDate) {
+    // 時間轉換：將 UTC 時間轉換為台灣時間（只顯示 UTC 時間，無需 +8 小時）
+    function convertToUTCTime(utcDate) {
       const utcTime = new Date(utcDate);
       console.log("UTC Time: ", utcTime);  // 顯示原始 UTC 時間
-      const taiwanTime = new Date(utcTime.getTime() + 8 * 60 * 60 * 1000); // 加 8 小時轉換為台灣時間
-      console.log("Converted Taiwan Time: ", taiwanTime);  // 顯示轉換後的台灣時間
-      return taiwanTime.toLocaleString('zh-TW', {
+      return utcTime.toLocaleString('zh-TW', {
         year: 'numeric',
         month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true // 12小時制（上午/下午）
-      });
-    }
-
-    // 拉取資料
-    function fetchData(field, callback) {
-      const url = `https://api.thingspeak.com/channels/${channelID}/fields/${field}.json?api_key=${readAPIKey}&results=${resultCount}`;
-      fetch(url)
-        .then(res => res.json())
-        .then(data => {
-          const feeds = data.feeds;
-          const labels = feeds.map(f => convertToTaiwanTime(f.created_at)); // 使用轉換過的台灣時間
-          const values = feeds.map(f => parseFloat(f[`field${field}`]));
-          callback(labels, values);
-        });
-    }
-
-    let charts = {}; // 用來儲存圖表實例
-
-    // 畫圖表
-    function drawChart(canvasId, label, color, field) {
-      fetchData(field, (labels, values) => {
-        // 若已存在舊圖表，先清除
-        if (charts[canvasId]) {
-          charts[canvasId].destroy();
-        }
-
-        charts[canvasId] = new Chart(document.getElementById(canvasId), {
-          type: 'line',
-          data: {
-            labels: labels,
-            datasets: [{
-              label: label,
-              data: values,
-              borderColor: color,
-              backgroundColor: color + '33',
-              fill: true,
-              tension: 0.3
-            }]
-          },
-          options: {
-            responsive: true,
-            scales: {
-              y: {
-                beginAtZero: false
-              }
-            }
-          }
-        });
-      });
-    }
-
-    // 畫三張圖（第一次載入）
-    drawChart('tempChart', '溫度 (°C)', '#FF5733', 1);
-    drawChart('humChart', '濕度 (%)', '#33C3FF', 2);
-    drawChart('voltChart', '電壓 (V)', '#FFC300', 3);
-
-    // 每30秒自動重繪一次圖表（更新資料）
-    setInterval(() => {
-      drawChart('tempChart', '溫度 (°C)', '#FF5733', 1);
-      drawChart('humChart', '濕度 (%)', '#33C3FF', 2);
-      drawChart('voltChart', '電壓 (V)', '#FFC300', 3);
-    }, 30000); // 每30秒更新
-
-    // 控制裝置（Field 4）
-    function sendCommand(value) {
-      const url = `https://api.thingspeak.com/update?api_key=${writeAPIKey}&field4=${value}`;
-      fetch(url)
-        .then(res => res.text())
-        .then(data => {
-          if (parseInt(data) > 0) {
-            alert(`裝置已${value === 1 ? '開啟' : '關閉'}！`);
-          } else {
-            alert("控制失敗，請稍後再試！");
-          }
-        });
-    }
-  </script>
-
-</body>
-
-</html>
+        day
