@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
@@ -73,12 +73,28 @@
 </div>
 
 <script>
+// ThingSpeak 配置
 const channelID = 2916938;
 const readAPIKey = "DMGOOIQQ66FTYLLG";
 const writeAPIKey = "N8IHJ199LRCNXZN6";
 const resultCount = 20;
 
-// ✅ 時間已轉換為 GMT+8
+// 時間轉換：將 UTC 時間轉換為台灣時間（UTC+8）
+function convertToTaiwanTime(utcDate) {
+  const utcTime = new Date(utcDate);
+  const taiwanTime = new Date(utcTime.getTime() + 8 * 60 * 60 * 1000); // 加 8 小時轉換為台灣時間
+  return taiwanTime.toLocaleString('zh-TW', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true // 12小時制（上午/下午）
+  });
+}
+
+// 拉取資料
 function fetchData(field, callback) {
   const url = `https://api.thingspeak.com/channels/${channelID}/fields/${field}.json?api_key=${readAPIKey}&results=${resultCount}`;
 
@@ -87,26 +103,14 @@ function fetchData(field, callback) {
     .then(data => {
       const feeds = data.feeds;
 
-      const labels = feeds.map(f => {
-        const utcTime = new Date(f.created_at);
-        const taiwanTime = new Date(utcTime.getTime() + 8 * 60 * 60 * 1000); // +8小時
-        return taiwanTime.toLocaleString('zh-TW', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
-        });
-      });
-
+      const labels = feeds.map(f => convertToTaiwanTime(f.created_at)); // 使用轉換過的台灣時間
       const values = feeds.map(f => parseFloat(f[`field${field}`]));
 
       callback(labels, values);
     });
 }
 
-let charts = {}; // 存儲圖表變數
+let charts = {}; // 用來儲存圖表實例
 
 // 畫圖表
 function drawChart(canvasId, label, color, field) {
@@ -146,12 +150,12 @@ drawChart('tempChart', '溫度 (°C)', '#FF5733', 1);
 drawChart('humChart', '濕度 (%)', '#33C3FF', 2);
 drawChart('voltChart', '電壓 (V)', '#FFC300', 3);
 
-// ✅ 每30秒自動重繪一次圖表（更新資料）
+// 每30秒自動重繪一次圖表（更新資料）
 setInterval(() => {
   drawChart('tempChart', '溫度 (°C)', '#FF5733', 1);
   drawChart('humChart', '濕度 (%)', '#33C3FF', 2);
   drawChart('voltChart', '電壓 (V)', '#FFC300', 3);
-}, 30000); // 30秒
+}, 30000); // 每30秒更新
 
 // 控制裝置（Field 4）
 function sendCommand(value) {
